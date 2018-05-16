@@ -47,6 +47,25 @@ class Affiliates_Cf_Form_Settings {
 		$default_status = get_option( 'aff_default_referral_status', AFFILIATES_REFERRAL_STATUS_ACCEPTED );
 		$options = get_option( $id , array() );
 		$enable_form_referrals = isset( $options['affiliates_cf']['enable_form_referrals'] ) ? $options['affiliates_cf']['enable_form_referrals'] : false;
+		$referral_status       = isset( $options['affiliates_cf']['referral_status' ] ) ? $options['affiliates_cf']['referral_status'] : $default_status;
+
+		// referral status
+		$status_descriptions = array(
+			AFFILIATES_REFERRAL_STATUS_ACCEPTED => __( 'Accepted', 'affiliates-caldera-forms' ),
+			AFFILIATES_REFERRAL_STATUS_CLOSED   => __( 'Closed', 'affiliates-caldera-forms' ),
+			AFFILIATES_REFERRAL_STATUS_PENDING  => __( 'Pending', 'affiliates-caldera-forms' ),
+			AFFILIATES_REFERRAL_STATUS_REJECTED => __( 'Rejected', 'affiliates-caldera-forms' ),
+		);
+		$status_select = '<select name="config[affiliates_cf][referral_status]">';
+		foreach ( $status_descriptions as $status_key => $status_value ) {
+			if ( $status_key == $referral_status ) {
+				$selected = 'selected="selected"';
+			} else {
+				$selected = '';
+			}
+			$status_select .= "<option value='$status_key' $selected>$status_value</option>";
+		}
+		$status_select .= '</select>';
 
 		if ( defined( 'ACF_LIB' ) ) {
 			if ( ACF_LIB == 'lib' ) {
@@ -66,6 +85,22 @@ class Affiliates_Cf_Form_Settings {
 				$output .= '</div>';
 
 				$output .= '<div class="caldera-config-group">';
+				$output .= '<label>';
+				$output .= esc_html__( 'Referral Status', 'affiliates-caldera-forms' );
+				$output .= '</label>';
+				$output .= '<div class="caldera-config-field">';
+				$output .= '<label>';
+				$output .= $status_select;
+				$output .= '&nbsp&nbsp';
+				$output .= esc_html__( 'Referral Status', 'affiliates-caldera-forms' );
+				$output .= '</label>';
+				$output .= '<p class="description">';
+				$output .= esc_html__( 'The default status of referrals recorded for this form.', 'affiliates-caldera-forms' );
+				$output .= '</p>';
+				$output .= '</div>';
+				$output .= '</div>';
+
+				$output .= '<div class="caldera-config-group">';
 				$output .= '<div class="caldera-config-field">';
 				$output .= '<p class="description">';
 				$output .= esc_html__( 'Referral Commissions for this form can be set through Affiliates > Rates.', 'affiliates-caldera-forms' );
@@ -73,38 +108,17 @@ class Affiliates_Cf_Form_Settings {
 				$output .= '</div>';
 				$output .= '</div>';
 			} else {
-				$referral_status       = isset( $options['affiliates_cf']['referral_status' ] ) ? $options['affiliates_cf']['referral_status'] : $default_status;
 				$referral_amount       = isset( $options['affiliates_cf']['referral_amount' ] ) ? $options['affiliates_cf']['referral_amount'] : '';
 				$referral_rate         = isset( $options['affiliates_cf']['referral_rate'] ) ? $options['affiliates_cf']['referral_rate'] : '';
 				$referral_rate_field   = isset( $options['affiliates_cf']['referral_rate_field'] ) ? $options['affiliates_cf']['referral_rate_field'] : '';
-
-				// referral status
-				$status_descriptions = array(
-					AFFILIATES_REFERRAL_STATUS_ACCEPTED => __( 'Accepted', 'affiliates-caldera-forms' ),
-					AFFILIATES_REFERRAL_STATUS_CLOSED   => __( 'Closed', 'affiliates-caldera-forms' ),
-					AFFILIATES_REFERRAL_STATUS_PENDING  => __( 'Pending', 'affiliates-caldera-forms' ),
-					AFFILIATES_REFERRAL_STATUS_REJECTED => __( 'Rejected', 'affiliates-caldera-forms' ),
-				);
-				$status_select = '<select name="config[affiliates_cf][referral_status]">';
-				foreach ( $status_descriptions as $status_key => $status_value ) {
-					if ( $status_key == $referral_status ) {
-						$selected = 'selected="selected"';
-					} else {
-						$selected = '';
-					}
-					$status_select .= "<option value='$status_key' $selected>$status_value</option>";
-				}
-				$status_select .= '</select>';
 
 				// referral rate amount field
 				// We use a select here, because there is no explicit total field in Caldera Forms
 				// that can be used automatically for referral rate calculations
 				$form_fields  = null;
 				$caldera_form = Caldera_Forms_Forms::get_form( $id );
-				foreach ( $caldera_form['fields'] as $field_id ) {
-					if ( $field_id['type'] == 'text' || $field_id['type'] == 'number' ) {
-						$form_fields = array( $field_id['ID'] => $field_id['label'] );
-					}
+				foreach ( $caldera_form['fields'] as $field_id ) {write_log( $caldera_form['fields']);
+					$form_fields[$field_id['ID']] = $field_id['label'];
 				}
 				if ( is_array( $form_fields ) ) {
 					$rate_field_select = '<select name="config[affiliates_cf][referral_rate_field]">';
@@ -114,7 +128,7 @@ class Affiliates_Cf_Form_Settings {
 						} else {
 							$selected = '';
 						}
-						$rate_field_select .= "<option value='$field_key' $selected>$field_label</option>";
+						$rate_field_select .= '<option value="' . $field_key .'"'. $selected .'>' . $field_label . '</option>';
 					}
 					$rate_field_select .= '</select>';
 				}
@@ -184,7 +198,13 @@ class Affiliates_Cf_Form_Settings {
 				$output .= esc_html__( 'Referral Rate', 'affiliates-caldera-forms' );
 				$output .= '</label>';
 				$output .= '<p class="description">';
-				$output .= esc_html__( 'If the referral amount should be calculated based on the form total, input the rate to be used.', 'affiliates-caldera-forms' );
+				$output .=
+					wp_kses(
+						__( 'If the referral amount should be calculated based on the <strong>Base amount Field</strong>, input the rate to be used.', 'affiliates-caldera-forms' ),
+						array(
+							'strong' => array()
+						)
+					);
 				$output .= '<br />';
 				$output .= esc_html__( 'For example, use 0.1 to grant a commission of 10%. Leave this empty if a fixed commission should be granted.', 'affiliates-caldera-forms' );
 				$output .= '</p>';
@@ -193,11 +213,10 @@ class Affiliates_Cf_Form_Settings {
 
 				$output .= '<div class="caldera-config-group">';
 				$output .= '<label>';
-				$output .= esc_html__( 'Referral Rate Field', 'affiliates-caldera-forms' );
+				$output .= esc_html__( 'Base amount Field', 'affiliates-caldera-forms' );
 				$output .= '</label>';
 				$output .= '<div class="caldera-config-field">';
-	// This is the first option
-	// @todo I'm not sure how we can set this field and use it in Rates, for referral rate calculations
+
 				if ( isset( $rate_field_select ) ) {
 					$output .= '<label>';
 					$output .= $rate_field_select;
@@ -205,48 +224,32 @@ class Affiliates_Cf_Form_Settings {
 					$output .= esc_html__( 'Field Label', 'affiliates-caldera-forms' );
 					$output .= '</label>';
 					$output .= '<p class="description">';
-					$output .= esc_html__( 'Select the form amount field to be used for Referral Rate calculations.', 'affiliates-caldera-forms' );
+					$output .=
+						wp_kses(
+							__( 'Select the form field to be used as the <strong>Base amount field</strong> for Referral Rate calculations.', 'affiliates-caldera-forms' ),
+							array(
+								'strong' => array()
+							)
+						);
 					$output .= '</p>';
 				} else {
 					$output .= '<label>';
 					$output .= esc_html__( 'Field Label', 'affiliates-caldera-forms' );
 					$output .= '</label>';
 					$output .= '<p class="description">';
-					$output .= esc_html__( 'Add a new text or number type field in your form to select it here for Referral Rate calculations.', 'affiliates-caldera-forms' );
+					$output .=
+						wp_kses(
+							__( 'Add fields to your form and select one here as the <strong>Base amount field</strong> for Referral Rate calculations.', 'affiliates-caldera-forms' ),
+							array(
+								'strong' => array()
+							)
+						);
 					$output .= '</p>';
 				}
 				$output .= '</div>';
 				$output .= '</div>';
 
-	// This is the second option
-				$output .= '<div class="caldera-config-group">';
-				$output .= '<label>';
-				$output .= esc_html__( 'Referral Rate Field', 'affiliates-caldera-forms' );
-				$output .= '</label>';
-				$output .= '<div class="caldera-config-field">';
-				if ( isset( $affiliates_amount_field ) ) {
-					$output .= '<label>';
-					$output .= '\'';
-					$output .= $affiliates_amount_field;
-					$output .= '\'';
-					$output .= '&nbsp&nbsp';
-					$output .= esc_html__( ' field', 'affiliates-caldera-forms' );
-					$output .= '</label>';
-					$output .= '<p class="description">';
-					$output .= esc_html__( 'The field with label \'Affiliates\' will be used for Referral Rate calculations.', 'affiliates-caldera-forms' );
-					$output .= '</p>';
-				} else {
-					$output .= '<label>';
-					$output .= esc_html__( 'No \'Affiliates\' field has been found on this form.', 'affiliates-caldera-forms' );
-					$output .= '</label>';
-					$output .= '<p class="description">';
-					$output .= esc_html__( 'Add a new text field in your form and use \'affiliates\' as the slug, or \'Affiliates\' as the label to be used for Referral Rate calculations.', 'affiliates-caldera-forms' );
-					$output .= '</p>';
 				}
-
-				$output .= '</div>';
-				$output .= '</div>';
-			}
 		}
 
 		// @codingStandardsIgnoreStart
